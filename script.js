@@ -1,134 +1,99 @@
-let recognition, mediaRecorder, audioChunks = [];
-const transcriptDiv = document.getElementById("transcript");
-const downloadLink = document.getElementById("downloadLink");
-const gainSlider = document.getElementById("gainSlider");
+const video = document.getElementById('camera');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+const counter = document.getElementById('counter');
 
-let audioCtx, source, analyser, gainNode;
+let model, faceMesh;
+let detections = [];
 
-// === 音声認識 ===
-if ('webkitSpeechRecognition' in window) {
-  recognition = new webkitSpeechRecognition();
-  recognition.lang = "ja-JP";
-  recognition.interimResults = true;
-  recognition.continuous = true;
-
-  recognition.onresult = (event) => {
-    let text = "";
-    for (let i = 0; i < event.results.length; i++) {
-      text += event.results[i][0].transcript + " ";
-    }
-    transcriptDiv.textContent = text;
-  };
-} else {
-  transcriptDiv.textContent = "⚠️ Web Speech API非対応ブラウザです。";
+async function setupCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  video.srcObject = stream;
+  await new Promise(resolve => video.onloadedmetadata = resolve);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 }
 
-// === 録音開始 ===
-document.getElementById("startBtn").onclick = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true
+function initFaceMesh() {
+  faceMesh = new FaceMesh.FaceMesh({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+  });
+  faceMesh.setOptions({
+    maxNumFaces: 10,
+    refineLandmarks: true,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
+  faceMesh.onResults(results => {
+    detections = results.multiFaceLandmarks || [];
+  });
+}
+
+function calcEyeOpen(landmarks) {
+  // 左目の上下点で開閉を判定
+  const top = landmarks[159].y;
+  const bottom = landmarks[145].y;
+  return (bottom - top) > 0.02 ? "目:開" : "目:閉";
+}
+
+function calcMouthOpen(landmarks) {
+  const top = landmarks[13].y;
+  const bottom = landmarks[14].y;
+  return (bottom - top) > 0.03 ? "口:開" : "口:閉";
+}
+
+async function detect() {
+  const predictions = await model.estimateFaces(video, false);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  predictions.forEach((p, i) => {
+    const [x, y, w, h] = [
+      p.topLeft[0],
+      p.topLeft[1],
+      p.bottomRight[0] - p.topLeft[0],
+      p.bottomRight[1] - p.topLeft[1]
+    ];
+
+    // 距離推定
+    const distance = Math.round(5000 / w);
+    const isClose = distance < 100;
+
+    // 枠の描画
+    ctx.strokeStyle = isClose ? "red" : "#00ffcc";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, w, h);
+
+    // 目・口判定（対応するランドマークがあれば）
+    let eyeStatus = "", mouthStatus = "";
+    if (detections[i]) {
+      eyeStatus = calcEyeOpen(detections[i]);
+      mouthStatus = calcMouthOpen(detections[i]);
     }
+
+    // 情報表示
+    ctx.fillStyle = isClose ? "red" : "white";
+    ctx.font = "16px sans-serif";
+    ctx.fillText(
+      `${i+1}人目: ${distance}cm ${isClose ? "接近中" : ""} ${eyeStatus} ${mouthStatus}`,
+      x, y > 20 ? y - 5 : y + 15
+    );
   });
 
-  // AudioContextでマイク感度調整
-  audioCtx = new AudioContext();
-  source = audioCtx.createMediaStreamSource(stream);
-  gainNode = audioCtx.createGain();
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 64;
-
-  source.connect(gainNode);
-  gainNode.connect(analyser);
-  gainNode.connect(audioCtx.destination); // ←自分に返す場合（モニタリング）
-
-  // MediaRecorderセット
-  mediaRecorder = new MediaRecorder(stream);
-  audioChunks = [];
-
-  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-  mediaRecorder.onstop = async () => {
-    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-
-    // MP3に変換
-    const mp3Blob = encodeMp3(audioBuffer);
-    const url = URL.createObjectURL(mp3Blob);
-
-    downloadLink.href = url;
-    downloadLink.download = "recording.mp3";
-    downloadLink.style.display = "block";
-    downloadLink.textContent = "録音ダウンロード (MP3)";
-  };
-
-  mediaRecorder.start();
-  recognition.start();
-
-  document.getElementById("startBtn").disabled = true;
-  document.getElementById("stopBtn").disabled = false;
-
-  startVisualizer();
-};
-
-// === 録音停止 ===
-document.getElementById("stopBtn").onclick = () => {
-  mediaRecorder.stop();
-  recognition.stop();
-  document.getElementById("startBtn").disabled = false;
-  document.getElementById("stopBtn").disabled = true;
-};
-
-// === コピー機能 ===
-document.getElementById("copyBtn").onclick = () => {
-  navigator.clipboard.writeText(transcriptDiv.textContent);
-  alert("コピーしました！");
-};
-
-// === マイク感度スライダー ===
-gainSlider.oninput = () => {
-  if (gainNode) gainNode.gain.value = parseFloat(gainSlider.value);
-};
-
-// === MP3エンコード (lamejs利用) ===
-function encodeMp3(audioBuffer) {
-  const samples = audioBuffer.getChannelData(0);
-  const mp3encoder = new lamejs.Mp3Encoder(1, audioBuffer.sampleRate, 128);
-  let mp3Data = [];
-  const blockSize = 1152;
-
-  for (let i = 0; i < samples.length; i += blockSize) {
-    const sampleChunk = samples.subarray(i, i + blockSize);
-    const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
-    if (mp3buf.length > 0) mp3Data.push(mp3buf);
-  }
-  const end = mp3encoder.flush();
-  if (end.length > 0) mp3Data.push(end);
-
-  return new Blob(mp3Data, { type: 'audio/mp3' });
+  counter.textContent = `人数: ${predictions.length}`;
+  requestAnimationFrame(detect);
 }
 
-// === ビジュアライザー ===
-function startVisualizer() {
-  const visualizer = document.getElementById("visualizer");
-  visualizer.innerHTML = "";
-  for (let i = 0; i < 30; i++) {
-    const bar = document.createElement("div");
-    bar.className = "bar";
-    visualizer.appendChild(bar);
-  }
-  const bars = document.getElementsByClassName("bar");
+(async () => {
+  await setupCamera();
+  model = await blazeface.load();
+  initFaceMesh();
 
-  function draw() {
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(dataArray);
-    for (let i = 0; i < bars.length; i++) {
-      bars[i].style.height = (dataArray[i] / 1.5) + "px";
-      bars[i].style.background = `hsl(${dataArray[i]*3}, 100%, 50%)`;
-    }
-    requestAnimationFrame(draw);
-  }
-  draw();
-}
+  const cameraM = new Camera(video, {
+    onFrame: async () => { await faceMesh.send({image: video}); },
+    width: 640,
+    height: 480
+  });
+  cameraM.start();
+
+  detect();
+})();
