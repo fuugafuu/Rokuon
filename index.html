@@ -4,19 +4,81 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>人カウントシステム</title>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body { margin: 0; background: black; overflow: hidden; }
+    #camera, #overlay {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh; object-fit: cover;
+    }
+    #overlay { z-index: 2; }
+    #counter {
+      position: fixed; top: 15px; right: 20px; z-index: 3;
+      color: #00ffcc; font-size: 2rem; font-weight: bold;
+      text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffff;
+      background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 8px;
+    }
+  </style>
 </head>
 <body>
   <div id="counter">人数: 0</div>
-  <button id="switch">カメラ切替</button>
   <video id="camera" autoplay playsinline></video>
   <canvas id="overlay"></canvas>
 
-  <!-- TensorFlow.js & MediaPipe -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+  <script>
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('overlay');
+    const ctx = canvas.getContext('2d');
+    const counter = document.getElementById('counter');
+    let model;
+
+    async function setupCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: "environment" } }  // 背面カメラ
+      });
+      video.srcObject = stream;
+      await new Promise(r => video.onloadedmetadata = r);
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+
+    async function detect() {
+      const predictions = await model.detect(video);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let personCount = 0;
+
+      predictions.forEach((p, i) => {
+        if (p.class === "person" && p.score > 0.6) {
+          personCount++;
+          const [x, y, w, h] = p.bbox;
+
+          const distance = Math.round(5000 / w);
+          const isClose = distance < 100;
+
+          ctx.strokeStyle = isClose ? "red" : "#00ffcc";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(x, y, w, h);
+
+          ctx.fillStyle = isClose ? "red" : "white";
+          ctx.font = "16px sans-serif";
+          ctx.fillText(
+            `${i+1}人目: ${distance}cm ${isClose ? "接近中" : ""}`,
+            x, y > 20 ? y - 5 : y + 15
+          );
+        }
+      });
+
+      counter.textContent = `人数: ${personCount}`;
+      requestAnimationFrame(detect);
+    }
+
+    (async () => {
+      await setupCamera();
+      model = await cocoSsd.load();
+      detect();
+    })();
+  </script>
 </body>
 </html>
