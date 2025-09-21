@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>リアルタイム文字起こし＆録音</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>🎤 リアルタイム文字起こし & 録音</h1>
+  
+  <button id="startBtn">録音開始</button>
+  <button id="stopBtn" disabled>録音停止</button>
+  <button id="copyBtn">コピー</button>
+  <a id="downloadLink" style="display:none;">録音ダウンロード</a>
+
+  <div id="visualizer"></div>
+  <div id="transcript">ここに文字起こしが表示されます…</div>
+
+  <script src="script.js"></script>
+</body>
+</html>
