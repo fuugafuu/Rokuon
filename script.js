@@ -58,11 +58,11 @@ document.getElementById("copyBtn").onclick = () => {
   alert("コピーしました！");
 };
 
-// === ビジュアライザー ===
+// === ビジュアライザー (30本) ===
 function startVisualizer(stream) {
   const visualizer = document.getElementById("visualizer");
   visualizer.innerHTML = "";
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 30; i++) { // ← スマホ向け軽量化
     const bar = document.createElement("div");
     bar.className = "bar";
     visualizer.appendChild(bar);
@@ -72,15 +72,15 @@ function startVisualizer(stream) {
   const audioCtx = new AudioContext();
   const source = audioCtx.createMediaStreamSource(stream);
   const analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 128;
+  analyser.fftSize = 64; // 軽量化
   source.connect(analyser);
 
   function draw() {
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(dataArray);
     for (let i = 0; i < bars.length; i++) {
-      bars[i].style.height = (dataArray[i] / 2) + "px";
-      bars[i].style.background = `hsl(${dataArray[i]*2}, 100%, 50%)`;
+      bars[i].style.height = (dataArray[i] / 1.5) + "px";
+      bars[i].style.background = `hsl(${dataArray[i]*3}, 100%, 50%)`;
     }
     requestAnimationFrame(draw);
   }
