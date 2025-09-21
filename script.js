@@ -1,8 +1,11 @@
 let recognition, mediaRecorder, audioChunks = [];
 const transcriptDiv = document.getElementById("transcript");
 const downloadLink = document.getElementById("downloadLink");
+const gainSlider = document.getElementById("gainSlider");
 
-// === 音声認識 (Web Speech API) ===
+let audioCtx, source, analyser, gainNode;
+
+// === 音声認識 ===
 if ('webkitSpeechRecognition' in window) {
   recognition = new webkitSpeechRecognition();
   recognition.lang = "ja-JP";
@@ -17,23 +20,48 @@ if ('webkitSpeechRecognition' in window) {
     transcriptDiv.textContent = text;
   };
 } else {
-  transcriptDiv.textContent = "⚠️ このブラウザはWeb Speech APIに対応していません。";
+  transcriptDiv.textContent = "⚠️ Web Speech API非対応ブラウザです。";
 }
 
-// === 録音 (MediaRecorder API) ===
+// === 録音開始 ===
 document.getElementById("startBtn").onclick = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true
+    }
+  });
+
+  // AudioContextでマイク感度調整
+  audioCtx = new AudioContext();
+  source = audioCtx.createMediaStreamSource(stream);
+  gainNode = audioCtx.createGain();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 64;
+
+  source.connect(gainNode);
+  gainNode.connect(analyser);
+  gainNode.connect(audioCtx.destination); // ←自分に返す場合（モニタリング）
+
+  // MediaRecorderセット
   mediaRecorder = new MediaRecorder(stream);
   audioChunks = [];
 
   mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-  mediaRecorder.onstop = () => {
+  mediaRecorder.onstop = async () => {
     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-    const url = URL.createObjectURL(audioBlob);
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+    // MP3に変換
+    const mp3Blob = encodeMp3(audioBuffer);
+    const url = URL.createObjectURL(mp3Blob);
+
     downloadLink.href = url;
-    downloadLink.download = "recording.webm";
+    downloadLink.download = "recording.mp3";
     downloadLink.style.display = "block";
-    downloadLink.textContent = "録音ダウンロード";
+    downloadLink.textContent = "録音ダウンロード (MP3)";
   };
 
   mediaRecorder.start();
@@ -42,9 +70,10 @@ document.getElementById("startBtn").onclick = async () => {
   document.getElementById("startBtn").disabled = true;
   document.getElementById("stopBtn").disabled = false;
 
-  startVisualizer(stream);
+  startVisualizer();
 };
 
+// === 録音停止 ===
 document.getElementById("stopBtn").onclick = () => {
   mediaRecorder.stop();
   recognition.stop();
@@ -58,22 +87,39 @@ document.getElementById("copyBtn").onclick = () => {
   alert("コピーしました！");
 };
 
-// === ビジュアライザー (30本) ===
-function startVisualizer(stream) {
+// === マイク感度スライダー ===
+gainSlider.oninput = () => {
+  if (gainNode) gainNode.gain.value = parseFloat(gainSlider.value);
+};
+
+// === MP3エンコード (lamejs利用) ===
+function encodeMp3(audioBuffer) {
+  const samples = audioBuffer.getChannelData(0);
+  const mp3encoder = new lamejs.Mp3Encoder(1, audioBuffer.sampleRate, 128);
+  let mp3Data = [];
+  const blockSize = 1152;
+
+  for (let i = 0; i < samples.length; i += blockSize) {
+    const sampleChunk = samples.subarray(i, i + blockSize);
+    const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+  }
+  const end = mp3encoder.flush();
+  if (end.length > 0) mp3Data.push(end);
+
+  return new Blob(mp3Data, { type: 'audio/mp3' });
+}
+
+// === ビジュアライザー ===
+function startVisualizer() {
   const visualizer = document.getElementById("visualizer");
   visualizer.innerHTML = "";
-  for (let i = 0; i < 30; i++) { // ← スマホ向け軽量化
+  for (let i = 0; i < 30; i++) {
     const bar = document.createElement("div");
     bar.className = "bar";
     visualizer.appendChild(bar);
   }
   const bars = document.getElementsByClassName("bar");
-
-  const audioCtx = new AudioContext();
-  const source = audioCtx.createMediaStreamSource(stream);
-  const analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 64; // 軽量化
-  source.connect(analyser);
 
   function draw() {
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
