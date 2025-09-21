@@ -1,101 +1,21 @@
 body {
-  font-family: "Segoe UI", "Hiragino Sans", sans-serif;
-  background: linear-gradient(135deg, #1e3c72, #2a5298);
-  color: white;
-  text-align: center;
-  padding: 20px;
   margin: 0;
-}
-
-h1 {
-  margin: 10px 0 20px;
-  font-size: 1.5em;
-  text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
-}
-
-/* ボタン配置 */
-.btn-group {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-}
-
-button {
-  background: #ff4081;
-  border: none;
-  color: white;
-  padding: 15px 20px;
-  font-size: 18px;
-  border-radius: 10px;
-  cursor: pointer;
-  flex: 1;
-  min-width: 100px;
-  transition: background 0.3s;
-}
-button:hover { background: #f50057; }
-
-#downloadLink {
-  display: block;
-  margin: 15px auto;
-  color: #fff;
-  font-size: 16px;
-  text-decoration: underline;
-}
-
-#transcript {
-  margin-top: 15px;
-  padding: 12px;
-  background: rgba(255,255,255,0.15);
-  border-radius: 8px;
-  min-height: 120px;
-  font-size: 16px;
-  line-height: 1.5;
-  text-align: left;
-  white-space: pre-wrap;
-  max-height: 200px;
-  overflow-y: auto; /* 長文スクロール可 */
-}
-
-/* ビジュアライザー */
-#visualizer {
-  width: 100%;
-  height: 100px;
-  background: rgba(0,0,0,0.3);
-  border-radius: 8px;
-  margin-top: 20px;
-  display: flex;
-  align-items: flex-end;
+  background: black;
   overflow: hidden;
 }
-
-.bar {
-  flex: 1;
-  margin: 0 1px;
-  background: lime;
-  height: 10px;
-  transition: height 0.05s;
+#camera, #overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
 }
-
-/* スマホ調整 */
-@media (max-width: 600px) {
-  h1 {
-    font-size: 1.2em;
-  }
-  button {
-    font-size: 16px;
-    padding: 12px;
-  }
-  #transcript {
-    font-size: 14px;
-  }
-}
-.control {
-  margin: 15px auto;
-  font-size: 16px;
-  color: #fff;
-}
-
-.control input[type="range"] {
-  width: 150px;
+#counter {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  color: #00ffcc;
+  font-size: 2rem;
+  font-weight: bold;
+  text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffff;
 }
