@@ -2,16 +2,26 @@ const video = document.getElementById('camera');
 const canvas = document.getElementById('overlay');
 const ctx = canvas.getContext('2d');
 const counter = document.getElementById('counter');
+const switchBtn = document.getElementById('switch');
 
 let model, faceMesh;
 let detections = [];
+let useFront = false;  // false = 背面カメラ（デフォルト）
 
 async function setupCamera() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  video.srcObject = stream;
-  await new Promise(resolve => video.onloadedmetadata = resolve);
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  const constraints = {
+    video: { facingMode: useFront ? "user" : { exact: "environment" } }
+  };
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = stream;
+    await new Promise(resolve => video.onloadedmetadata = resolve);
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  } catch (err) {
+    console.error("カメラ起動エラー:", err);
+  }
 }
 
 function initFaceMesh() {
@@ -30,7 +40,6 @@ function initFaceMesh() {
 }
 
 function calcEyeOpen(landmarks) {
-  // 左目の上下点で開閉を判定
   const top = landmarks[159].y;
   const bottom = landmarks[145].y;
   return (bottom - top) > 0.02 ? "目:開" : "目:閉";
@@ -54,23 +63,19 @@ async function detect() {
       p.bottomRight[1] - p.topLeft[1]
     ];
 
-    // 距離推定
     const distance = Math.round(5000 / w);
     const isClose = distance < 100;
 
-    // 枠の描画
     ctx.strokeStyle = isClose ? "red" : "#00ffcc";
     ctx.lineWidth = 3;
     ctx.strokeRect(x, y, w, h);
 
-    // 目・口判定（対応するランドマークがあれば）
     let eyeStatus = "", mouthStatus = "";
     if (detections[i]) {
       eyeStatus = calcEyeOpen(detections[i]);
       mouthStatus = calcMouthOpen(detections[i]);
     }
 
-    // 情報表示
     ctx.fillStyle = isClose ? "red" : "white";
     ctx.font = "16px sans-serif";
     ctx.fillText(
@@ -97,3 +102,9 @@ async function detect() {
 
   detect();
 })();
+
+// カメラ切替ボタン
+switchBtn.addEventListener("click", async () => {
+  useFront = !useFront;
+  await setupCamera();
+});
