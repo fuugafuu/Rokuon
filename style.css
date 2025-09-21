@@ -90,3 +90,12 @@ button:hover { background: #f50057; }
     font-size: 14px;
   }
 }
+.control {
+  margin: 15px auto;
+  font-size: 16px;
+  color: #fff;
+}
+
+.control input[type="range"] {
+  width: 150px;
+}
