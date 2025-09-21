@@ -14,12 +14,19 @@
     <button id="stopBtn" disabled>録音停止</button>
     <button id="copyBtn">コピー</button>
   </div>
+
+  <div class="control">
+    🎚️ マイク感度:
+    <input type="range" id="gainSlider" min="0" max="2" value="1" step="0.1">
+  </div>
   
   <a id="downloadLink" style="display:none;">録音ダウンロード</a>
 
   <div id="visualizer"></div>
   <div id="transcript">ここに文字起こしが表示されます…</div>
 
+  <!-- MP3変換ライブラリ -->
+  <script src="https://unpkg.com/lamejs/lame.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
