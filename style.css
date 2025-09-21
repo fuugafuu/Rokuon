@@ -3,44 +3,64 @@ body {
   background: linear-gradient(135deg, #1e3c72, #2a5298);
   color: white;
   text-align: center;
-  padding: 40px;
+  padding: 20px;
+  margin: 0;
 }
 
 h1 {
-  margin-bottom: 20px;
+  margin: 10px 0 20px;
+  font-size: 1.5em;
   text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+}
+
+/* ボタン配置 */
+.btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
 }
 
 button {
   background: #ff4081;
   border: none;
   color: white;
-  padding: 12px 25px;
-  font-size: 16px;
-  border-radius: 8px;
+  padding: 15px 20px;
+  font-size: 18px;
+  border-radius: 10px;
   cursor: pointer;
-  margin: 10px;
+  flex: 1;
+  min-width: 100px;
   transition: background 0.3s;
 }
-button:hover {
-  background: #f50057;
+button:hover { background: #f50057; }
+
+#downloadLink {
+  display: block;
+  margin: 15px auto;
+  color: #fff;
+  font-size: 16px;
+  text-decoration: underline;
 }
 
 #transcript {
-  margin-top: 20px;
-  padding: 15px;
-  background: rgba(255,255,255,0.1);
+  margin-top: 15px;
+  padding: 12px;
+  background: rgba(255,255,255,0.15);
   border-radius: 8px;
-  min-height: 100px;
-  font-size: 18px;
-  line-height: 1.6;
+  min-height: 120px;
+  font-size: 16px;
+  line-height: 1.5;
   text-align: left;
   white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto; /* 長文スクロール可 */
 }
 
+/* ビジュアライザー */
 #visualizer {
   width: 100%;
-  height: 120px;
+  height: 100px;
   background: rgba(0,0,0,0.3);
   border-radius: 8px;
   margin-top: 20px;
@@ -55,4 +75,18 @@ button:hover {
   background: lime;
   height: 10px;
   transition: height 0.05s;
+}
+
+/* スマホ調整 */
+@media (max-width: 600px) {
+  h1 {
+    font-size: 1.2em;
+  }
+  button {
+    font-size: 16px;
+    padding: 12px;
+  }
+  #transcript {
+    font-size: 14px;
+  }
 }
