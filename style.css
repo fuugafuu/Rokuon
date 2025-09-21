@@ -3,26 +3,43 @@ body {
   background: black;
   overflow: hidden;
 }
-#camera, #overlay {
-  position: absolute;
+
+#camera {
+  position: fixed;
   top: 0; left: 0;
   width: 100vw;
   height: 100vh;
   object-fit: cover;
+  z-index: 1; /* 一番下 */
 }
+
+#overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2; /* 枠を描画 */
+}
+
 #counter {
-  position: absolute;
-  top: 10px;
+  position: fixed;
+  top: 15px;
   right: 20px;
+  z-index: 3; /* 一番上 */
   color: #00ffcc;
   font-size: 2rem;
   font-weight: bold;
   text-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffff;
+  background: rgba(0,0,0,0.4);
+  padding: 5px 10px;
+  border-radius: 8px;
 }
+
 #switch {
-  position: absolute;
+  position: fixed;
   bottom: 20px;
   right: 20px;
+  z-index: 3; /* 一番上 */
   padding: 10px 20px;
   font-size: 1rem;
   border: none;
